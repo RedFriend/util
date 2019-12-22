@@ -1,7 +1,11 @@
 package com.taiji.commons.utils;
 
+import com.itextpdf.io.image.ImageData;
 import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.kernel.geom.PageSize;
+import com.itextpdf.kernel.geom.Rectangle;
 import com.itextpdf.kernel.pdf.*;
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor;
 import com.itextpdf.kernel.pdf.xobject.PdfImageXObject;
 import com.itextpdf.kernel.utils.PageRange;
@@ -18,6 +22,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadFactory;
@@ -49,7 +55,7 @@ public class PdfUtils {
 
     public static void main(String[] args) throws Exception {
 //        splitByPageCount("C:\\Users\\pengh\\Desktop\\test.pdf", "C:\\Users\\pengh\\Desktop\\test", 0);
-//        imagesToPdf(new File("C:\\Users\\pengh\\Desktop\\test").listFiles(), new File("C:\\\\Users\\\\pengh\\\\Desktop\\\\test2.pdf"));
+        imagesToPdf(new File("C:\\Users\\pengh\\Desktop\\test").listFiles(), new File("C:\\\\Users\\\\pengh\\\\Desktop\\\\test2.pdf"));
 //        pdfToImages("C:\\Users\\pengh\\Desktop\\test.pdf", "C:\\Users\\pengh\\Desktop\\test");
 //        System.out.println(extractText("C:\\Users\\pengh\\Desktop\\test.pdf"));
     }
@@ -62,7 +68,7 @@ public class PdfUtils {
      * @param destPath   生成PDF文件路径
      * @author Ryan.Peng
      */
-    public static void imagesToPdf(String[] imagePaths, String destPath) {
+    public static void imagesToPdf2(String[] imagePaths, String destPath) {
         try {
             Long start = System.currentTimeMillis();
             Document document = new Document(new PdfDocument(new PdfWriter(destPath)));
@@ -83,15 +89,41 @@ public class PdfUtils {
      * 多个图片合并成PDF
      * Gif,Jpeg,Png,Tif
      *
+     * @param imagePaths 图片路径
+     * @param destPath   生成PDF文件路径
+     * @author Ryan.Peng
+     */
+    public static void imagesToPdf(String[] imagePaths, String destPath) {
+        try {
+            Long start = System.currentTimeMillis();
+            PdfDocument pdfDocument = new PdfDocument(new PdfWriter(destPath));
+            Document document = new Document(pdfDocument);
+            for (String imagePath : imagePaths) {
+                ImageData imageData = ImageDataFactory.create(imagePath);
+                Image img = new Image(imageData, imageData.getWidth(), imageData.getHeight());
+                PageSize pageSize = new PageSize(new Rectangle(img.getImageWidth(), img.getImageHeight()));
+                PdfCanvas canvas = new PdfCanvas(pdfDocument.addNewPage(pageSize));
+                canvas.addImage(imageData, pageSize, false);
+            }
+            document.close();
+            logger.info("合并耗时:{}ms", System.currentTimeMillis() - start);
+        } catch (Exception e) {
+            logger.error("多个图片合并成PDF异常", e);
+        }
+    }
+
+    /**
+     * 多个图片合并成PDF
+     * Gif,Jpeg,Png,Tif
+     *
      * @param files    图片路径
      * @param destFile 生成PDF文件路径
      * @author Ryan.Peng
      */
     public static void imagesToPdf(File[] files, File destFile) {
-        String[] imagePaths = new String[files.length];
-        for (int i = 0; i < files.length; i++) {
-            imagePaths[i] = files[i].getPath();
-        }
+        String[] imagePaths = Arrays.stream(files)
+                .sorted(Comparator.comparing((f) -> Integer.valueOf(f.getName().substring(0, f.getName().lastIndexOf(".")))))
+                .map(File::getPath).toArray(String[]::new);
         imagesToPdf(imagePaths, destFile.getPath());
     }
 
